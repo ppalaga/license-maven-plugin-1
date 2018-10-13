@@ -250,13 +250,37 @@ public abstract class AbstractAddThirdPartyMojo
     @Parameter( property = "license.missingLicensesFileArtifact" )
     String missingLicensesFileArtifact;
 
+
     /**
-     * The file to write with a license information template for dependencies to override.
+     * A file containing the override license information for dependencies.
+     * <b>Note:</b> Specify either {@link #overrideUrl} (preferred) or {@link #overrideFile}.
+     * If none of these is specified, then {@value LicenseMojoUtils#DEFAULT_OVERRIDE_THIRD_PARTY} resolved against
+     * <code>${basedir}</code> will be used if it exists.
      *
      * @since 1.12
+     * @deprecated Use {@link #overrideUrl} instead
      */
-    @Parameter( property = "license.overrideFile", defaultValue = "src/license/override-THIRD-PARTY.properties" )
-    File overrideFile;
+    @Deprecated
+    @Parameter( property = "license.overrideFile" )
+    private File overrideFile;
+
+    /**
+     * A URL containing the override license information for dependencies.
+     * <b>Note:</b> Specify either {@link #overrideUrl} (preferred) or {@link #overrideFile}.
+     * If none of these is specified, then {@value LicenseMojoUtils#DEFAULT_OVERRIDE_THIRD_PARTY} resolved against
+     * <code>${basedir}</code> will be used if it exists.
+     *
+     * @since 1.17
+     */
+    @Parameter( property = "license.overrideUrl" )
+    private String overrideUrl;
+
+    /**
+     * A {@link URL} prepared either our of {@link #overrideFile} or {@link #overrideUrl} or the default value.
+     *
+     * @see LicenseMojoUtils#prepareThirdPartyOverrideUrl(URL, File, String, File)
+     */
+    URL resolvedOverrideUrl;
 
     /**
      * To merge licenses in final file.
@@ -671,6 +695,9 @@ public abstract class AbstractAddThirdPartyMojo
                 input.close();
             }
         }
+
+        resolvedOverrideUrl = LicenseMojoUtils.prepareThirdPartyOverrideUrl( resolvedOverrideUrl, overrideFile,
+                overrideUrl, project.getBasedir(), getLog() );
     }
 
     void consolidate() throws IOException, ArtifactNotFoundException, ArtifactResolutionException, MojoFailureException,
@@ -751,11 +778,6 @@ public abstract class AbstractAddThirdPartyMojo
     File getMissingFile()
     {
         return missingFile;
-    }
-
-    File getOverrideFile()
-    {
-        return overrideFile;
     }
 
     String getLicenseMergesFile()
@@ -1039,7 +1061,7 @@ public abstract class AbstractAddThirdPartyMojo
     void overrideLicenses() throws IOException
     {
         LicenseMap licenseMap1 = getLicenseMap();
-        thirdPartyTool.overrideLicenses( licenseMap1, projectDependencies, getEncoding(), overrideFile );
+        thirdPartyTool.overrideLicenses( licenseMap1, projectDependencies, getEncoding(), resolvedOverrideUrl );
     }
 
     private boolean isFailOnMissing()
